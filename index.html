@@ -5,49 +5,71 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>予約システム</title>
     <style>
-        body { font-family: sans-serif; margin: 0; padding: 10px; background: #f4f4f4; }
-        h2 { text-align: center; color: #333; }
-        table { width: 100%; border-collapse: collapse; background: white; }
-        th, td { border: 1px solid #ddd; padding: 10px; text-align: center; }
-        th { background: #ff7e50; color: white; }
-        .btn-reserve { background: #ff7e50; color: white; border: none; padding: 5px 10px; cursor: pointer; border-radius: 3px; }
+        body { font-family: 'Helvetica Neue', Arial, sans-serif; margin: 0; padding: 15px; background: #fdfdfd; }
+        h2 { text-align: center; color: #333; margin-bottom: 20px; border-bottom: 2px solid #ff7e50; padding-bottom: 10px; }
+        table { width: 100%; border-collapse: collapse; background: white; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        th, td { border: 1px solid #eee; padding: 12px; text-align: center; }
+        th { background: #ff7e50; color: white; font-weight: bold; }
+        tr:nth-child(even) { background: #fff9f7; }
+        .btn-reserve { background: #ff7e50; color: white; border: none; padding: 8px 15px; cursor: pointer; border-radius: 20px; font-weight: bold; transition: 0.3s; width: 100%; max-width: 120px; }
+        .btn-reserve:active { background: #e66a3e; transform: scale(0.95); }
         .btn-reserve:disabled { background: #ccc; }
     </style>
 </head>
 <body>
 
-<h2>予約空き状況</h2>
+<h2>📅 本日の空き状況</h2>
 
-<table>
-    <tr><th>時間</th><th>予約</th></tr>
-    <tr><td>09:30</td><td><button class="btn-reserve" onclick="reserve('09:30')">予約する</button></td></tr>
-    <tr><td>10:00</td><td><button class="btn-reserve" onclick="reserve('10:00')">予約する</button></td></tr>
-    <tr><td>10:30</td><td><button class="btn-reserve" onclick="reserve('10:30')">予約する</button></td></tr>
+<table id="reserve-table">
+    <thead>
+        <tr><th>時間</th><th>予約</th></tr>
+    </thead>
+    <tbody id="table-body">
+        </tbody>
 </table>
 
 <script>
-    // 【
-    const GAS_URL = "https://script.google.com/macros/s/AKfycbxV1tINn7AdFyLeCuzQiFCLxgEiBpsOhsYDNwSc-RK_PW4ldnbNPGqHoQzzbkL_0mqlsA/exec";
+    // 【重要】ここにあなたのGASデプロイURLを貼り付けてください
+    const GAS_URL = "ここにメモしたURLを貼る";
 
-    function reserve(time) {
-        const name = prompt("お名前を入力してください");
+    // 9:30から20:00までの30分刻みのリストを作る
+    const startTime = 9.5; // 9:30
+    const endTime = 20.0;   // 20:00
+    const tableBody = document.getElementById('table-body');
+
+    for (let t = startTime; t <= endTime; t += 0.5) {
+        const hour = Math.floor(t);
+        const min = (t % 1 === 0) ? "00" : "30";
+        const timeStr = hour.toString().padStart(2, '0') + ":" + min;
+
+        const row = `<tr>
+            <td>${timeStr}</td>
+            <td><button class="btn-reserve" onclick="reserve('${timeStr}', this)">予約する</button></td>
+        </tr>`;
+        tableBody.insertAdjacentHTML('beforeend', row);
+    }
+
+    function reserve(time, btn) {
+        const name = prompt(time + " の予約ですね。お名前を入力してください");
         if (!name) return;
 
-        const date = new Date().toISOString().split('T')[0]; // 今日
+        const date = new Date().toLocaleDateString('sv-SE'); // YYYY-MM-DD 形式
         
-        // ボタンを無効化
-        event.target.disabled = true;
-        event.target.innerText = "送信中...";
+        btn.disabled = true;
+        btn.innerText = "送信中...";
 
         fetch(GAS_URL, {
             method: "POST",
             body: JSON.stringify({ name: name, date: date, time: time }),
-            mode: "no-cors" // Googleのセキュリティ制限を回避
+            mode: "no-cors"
         }).then(() => {
-            alert("予約リクエストを送信しました！カレンダーを確認してください。");
-            location.reload();
+            alert("予約を送信しました！カレンダーをご確認ください。");
+            btn.innerText = "済";
+            btn.style.background = "#ccc";
         }).catch(err => {
             alert("エラーが発生しました: " + err);
+            btn.disabled = false;
+            btn.innerText = "予約する";
         });
     }
 </script>
