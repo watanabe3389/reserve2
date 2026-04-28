@@ -24,7 +24,7 @@
         tr:nth-child(even) { background-color: #fafafa; }
 
         .status-ok { color: var(--accent-color); font-weight: bold; cursor: pointer; font-size: 1.3em; display: block; }
-        .status-ng { display: block; line-height: 1.2; }
+        .status-ng { display: block; line-height: 1.2; font-weight: normal; }
         
         .sun { color: #d32f2f; } .sat { color: #1976d2; }
         #confirm-modal { display: none; position: fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); align-items:center; justify-content:center; z-index:1000; }
@@ -83,52 +83,62 @@
             const res = await fetch(GAS_URL);
             busySlots = await res.json();
             initTable();
-        } catch(e) { console.error("データ取得失敗:", e); }
+        } catch(e) { 
+            console.error("データ取得失敗:", e);
+            alert("データの読み込みに失敗しました。ページを更新してください。");
+        }
     };
 
     function initTable() {
         const header = document.getElementById('table-header');
         const body = document.getElementById('table-body');
+        const nowMs = new Date().getTime();
         
-        // 日付ヘッダー作成
+        // 1. 日付ヘッダーの生成
         for (let i = 0; i < 7; i++) {
-            const d = new Date(); d.setDate(d.getDate() + i);
+            const d = new Date();
+            d.setDate(d.getDate() + i);
             const dateStr = d.toLocaleDateString('sv-SE');
             dateList.push(dateStr);
+            
             const th = document.createElement('th');
             const dayClass = d.getDay() === 0 ? 'sun' : (d.getDay() === 6 ? 'sat' : '');
             th.innerHTML = `${d.getMonth()+1}/${d.getDate()}<br><span class="${dayClass}">(${daysArr[d.getDay()]})</span>`;
             header.appendChild(th);
         }
 
-        // 時間行作成 (9:30〜19:00)
+        // 2. 時間行の生成 (9:30〜19:00, 15分刻み)
         for (let t = 9.5; t <= 19.0; t += 0.25) {
+            const hour = Math.floor(t);
+            const min = (t % 1) * 60;
+            const timeStr = hour.toString().padStart(2,'0') + ":" + min.toString().padStart(2,'0');
+            
             const tr = document.createElement('tr');
-            const minutes = (t % 1) * 60;
-            const timeStr = Math.floor(t).toString().padStart(2,'0') + ":" + minutes.toString().padStart(2,'0');
+            if (min === 0) tr.classList.add('hour-border');
             
-            if (minutes === 0) tr.className = 'hour-border';
-            tr.innerHTML = `<td class="time-col">${timeStr}</td>`;
+            let html = `<td class="time-col">${timeStr}</td>`;
             
+            // 各日付のセルを作成
             dateList.forEach(dateStr => {
                 const checkTime = new Date(dateStr + ' ' + timeStr).getTime();
-                const now = new Date().getTime();
-                const busySlot = busySlots.find(slot => checkTime >= slot.start && checkTime < slot.end);
+                const busySlot = busySlots.find(s => checkTime >= s.start && checkTime < s.end);
                 
-                const td = document.createElement('td');
-                if (checkTime < now) {
-                    td.innerHTML = '<span class="status-ng" style="color:#bbb; font-size:0.7em;">受付終了</span>';
+                let content = '';
+                if (checkTime < nowMs) {
+                    content = '<span class="status-ng" style="color:#bbb; font-size:0.75em;">受付終了</span>';
                 } else if (busySlot) {
                     if (busySlot.isLongEvent) {
-                        td.innerHTML = '<span class="status-ng" style="color:#999; font-size:0.8em;">休業日</span>';
+                        content = '<span class="status-ng" style="color:#888; font-size:0.8em;">休業日</span>';
                     } else {
-                        td.innerHTML = '<span class="status-ng" style="color:#e57373; font-size:1.2em; font-weight:bold;">×</span>';
+                        content = '<span class="status-ng" style="color:#e57373; font-size:1.2em; font-weight:bold;">×</span>';
                     }
                 } else {
-                    td.innerHTML = `<span class="status-ok" onclick="openConfirm('${dateStr}', '${timeStr}')">◎</span>`;
+                    content = `<span class="status-ok" onclick="openConfirm('${dateStr}', '${timeStr}')">◎</span>`;
                 }
-                tr.appendChild(td);
+                html += `<td>${content}</td>`;
             });
+            
+            tr.innerHTML = html;
             body.appendChild(tr);
         }
     }
@@ -137,6 +147,17 @@
         const name = document.getElementById('user-name').value;
         const tel = document.getElementById('user-tel').value;
         const menu = document.getElementById('user-menu').value;
-        if(!name || !tel) return alert("お名前と電話番号を入力してください");
+        if(!name || !tel) return alert("お名前と電話番号を先に入力してください");
+        
         const d = new Date(date);
         const dateDisplay = `${d.getMonth()+1}/${d.getDate()}(${daysArr[d.getDay()]})`;
+        document.getElementById('confirm-text').innerHTML = `
+            <strong>日時：</strong>${dateDisplay} ${time}〜<br>
+            <strong>コース：</strong>${menu}<br>
+            <strong>お名前：</strong>${name}様
+        `;
+        document.getElementById('confirm-modal').style.display = 'flex';
+        document.getElementById('final-ok-btn').onclick = () => submit(name, tel, menu, date, time);
+    }
+
+    function closeModal() { document.getElementById('confirm-modal').style.display = 'none';
