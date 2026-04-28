@@ -30,7 +30,7 @@
         .status-ng-past { color: #e0e0e0; font-size: 1.1em; font-weight: bold; }
         .status-ng-booked { color: #e57373; font-size: 1.2em; font-weight: bold; }
         
-        /* 休業日：横線だけを消す設定 */
+        /* 休業日：縦線は残し、横線のみ消去 */
         .holiday-cell { 
             background: #f5f5f5; 
             color: #aaa; 
@@ -111,9 +111,21 @@
 
         header.innerHTML = '<th class="time-col">時間</th>';
         for (let i = 0; i < 7; i++) {
-            const d = new Date(); d.setDate(d.getDate() + startOffset + i);
+            const d = new Date();
+            d.setHours(0,0,0,0); // 判定用に時間をリセット
+            d.setDate(d.getDate() + startOffset + i);
+            
             const iso = `${d.getFullYear()}-${(d.getMonth()+1).toString().padStart(2,'0')}-${d.getDate().toString().padStart(2,'0')}`;
-            const isHoliday = busySlots.some(s => s.isLongEvent && new Date(s.start).toLocaleDateString('sv-SE') === iso);
+            
+            // 休業日の判定ロジックを修正
+            const isHoliday = busySlots.some(s => {
+                if (!s.isLongEvent) return false;
+                const sDate = new Date(s.start);
+                return sDate.getFullYear() === d.getFullYear() && 
+                       sDate.getMonth() === d.getMonth() && 
+                       sDate.getDate() === d.getDate();
+            });
+
             dates.push({ y:d.getFullYear(), m:d.getMonth(), d:d.getDate(), iso:iso, isHoliday:isHoliday });
             const dayClass = d.getDay() === 0 ? 'sun' : (d.getDay() === 6 ? 'sat' : '');
             header.innerHTML += `<th>${d.getMonth()+1}/${d.getDate()}<br><span class="${dayClass}">(${daysArr[d.getDay()]})</span></th>`;
@@ -126,13 +138,16 @@
                 if (h === 9 && m < 30) continue;
                 const timeStr = `${h.toString().padStart(2,'0')}:${m.toString().padStart(2,'0')}`;
                 let row = `<tr class="${m === 0 ? 'hour-border' : ''}"><td class="time-col">${timeStr}</td>`;
+                
                 dates.forEach(dateObj => {
                     if (dateObj.isHoliday) {
                         const text = (h === 14 && m === 0) ? '<span class="v-text">休業日</span>' : '';
                         row += `<td class="holiday-cell">${text}</td>`;
                     } else {
                         const ct = new Date(dateObj.y, dateObj.m, dateObj.d, h, m).getTime();
-                        const busy = busySlots.find(s => ct >= s.start && ct < s.end);
+                        // 予約済み判定ロジックを修正
+                        const busy = busySlots.find(s => !s.isLongEvent && ct >= s.start && ct < s.end);
+                        
                         if (ct < nowMs) row += `<td><span class="status-ng-past">×</span></td>`;
                         else if (busy) row += `<td><span class="status-ng-booked">×</span></td>`;
                         else row += `<td><span class="status-ok" onclick="openConfirm('${dateObj.iso}', '${timeStr}')">◎</span></td>`;
