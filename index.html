@@ -10,18 +10,17 @@
         .container { max-width: 900px; margin: 0 auto; background: white; padding: 15px; border-radius: 15px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
         h2 { text-align: center; color: var(--main-color); margin-bottom: 10px; }
         
-        /* 週切り替えボタンのスタイル */
-        .week-nav { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
-        .nav-btn { background: var(--main-color); color: white; border: none; padding: 8px 15px; border-radius: 20px; cursor: pointer; font-size: 0.9em; font-weight: bold; }
+        .week-nav { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; background: #f8f8f8; padding: 10px; border-radius: 10px; }
+        .nav-btn { background: var(--main-color); color: white; border: none; padding: 10px 20px; border-radius: 25px; cursor: pointer; font-weight: bold; }
         .nav-btn:disabled { background: #ccc; cursor: not-allowed; }
-        #current-week-display { font-weight: bold; color: var(--main-color); }
+        #current-week-display { font-weight: bold; font-size: 1.1em; }
 
         .input-area { background: #fdfdfd; padding: 12px; border-radius: 10px; margin-bottom: 15px; border: 1px solid #d7ccc8; }
         input, select { width: 100%; padding: 10px; margin: 5px 0 10px; border-radius: 8px; border: 1px solid #ddd; box-sizing: border-box; font-size: 16px; }
 
         .table-wrapper { overflow-x: auto; border: 1px solid var(--line-color); border-radius: 5px; }
         table { width: 100%; border-collapse: collapse; min-width: 650px; table-layout: fixed; }
-        th, td { border: 1px solid #ddd; padding: 10px 2px; text-align: center; font-size: 0.85em; height: 40px; }
+        th, td { border: 1px solid #ddd; padding: 10px 2px; text-align: center; font-size: 0.85em; height: 42px; }
         th { background: #f8f8f8; position: sticky; top: 0; z-index: 10; }
         
         .time-col { width: 65px; background: #eee; font-weight: bold; border-right: 2px solid var(--line-color) !important; }
@@ -45,9 +44,9 @@
     <h2>📅 予約状況</h2>
 
     <div class="week-nav">
-        <button id="prev-week" class="nav-btn" onclick="changeWeek(-7)">＜ 前週</button>
-        <div id="current-week-display"></div>
-        <button id="next-week" class="nav-btn" onclick="changeWeek(7)">翌週 ＞</button>
+        <button id="prev-btn" class="nav-btn">＜ 前週</button>
+        <div id="current-week-display">読み込み中...</div>
+        <button id="next-btn" class="nav-btn">翌週 ＞</button>
     </div>
 
     <div class="input-area">
@@ -79,21 +78,25 @@
     const GAS_URL = "https://script.google.com/macros/s/AKfycbywNPCyhk0tyin9vyBratW1HMoUmKyGK_gfrQC_455JYEMnnWFC3p_E5Dflg9869Bf7iQ/exec";
     const daysArr = ['日','月','火','水','木','金','土'];
     let busySlots = [];
-    let startOffset = 0; // 今日から数えて何日後から表示するか
+    let startOffset = 0; 
 
     window.onload = async function() {
         if(localStorage.getItem('reserve-name')) document.getElementById('user-name').value = localStorage.getItem('reserve-name');
         if(localStorage.getItem('reserve-tel')) document.getElementById('user-tel').value = localStorage.getItem('reserve-tel');
+        
+        // ボタンのクリックイベントをここで確実に設定
+        document.getElementById('prev-btn').onclick = () => changeWeek(-7);
+        document.getElementById('next-btn').onclick = () => changeWeek(7);
+
         try {
             const res = await fetch(GAS_URL);
             busySlots = await res.json();
-        } catch(e) {}
+        } catch(e) { console.error(e); }
         buildTable();
     };
 
-    function changeWeek(offset) {
-        startOffset += offset;
-        // 今日より前には戻れないように制限
+    function changeWeek(diff) {
+        startOffset += diff;
         if (startOffset < 0) startOffset = 0;
         buildTable();
     }
@@ -105,10 +108,14 @@
         const nowMs = Date.now();
         const dates = [];
 
-        // 前週ボタンの有効・無効切り替え
-        document.getElementById('prev-week').disabled = (startOffset <= 0);
+        // 前週ボタンの制御
+        document.getElementById('prev-btn').disabled = (startOffset <= 0);
 
+        // 表のクリア
         header.innerHTML = '<th class="time-col">時間</th>';
+        body.innerHTML = "";
+
+        // 日付データの作成
         for (let i = 0; i < 7; i++) {
             const d = new Date();
             d.setDate(d.getDate() + startOffset + i);
@@ -121,11 +128,11 @@
             th.innerHTML = `${d.getMonth()+1}/${d.getDate()}<br><span class="${dayClass}">(${daysArr[d.getDay()]})</span>`;
             header.appendChild(th);
 
-            // 週表示の更新（最初の月日〜最後の月日）
             if(i === 0) weekDisplay.innerText = `${d.getFullYear()}年 ${d.getMonth()+1}月`;
         }
 
-        let rows = "";
+        // 時間枠の作成
+        let rowsHtml = "";
         for (let h = 9; h <= 18; h++) {
             for (let m = 0; m <= 45; m += 15) {
                 if (h === 9 && m < 30) continue;
@@ -137,29 +144,4 @@
                         const text = (h === 14 && m === 0) ? '<span class="v-text">休業日</span>' : '';
                         row += `<td class="holiday-cell">${text}</td>`;
                     } else {
-                        const checkTime = new Date(dateObj.y, dateObj.m, dateObj.d, h, m).getTime();
-                        const busy = busySlots.find(s => checkTime >= s.start && checkTime < s.end);
-                        if (checkTime < nowMs) row += `<td><span class="status-ng-past">×</span></td>`;
-                        else if (busy) row += `<td><span class="status-ng-booked">×</span></td>`;
-                        else row += `<td><span class="status-ok" onclick="openConfirm('${dateObj.iso}', '${timeStr}')">◎</span></td>`;
-                    }
-                });
-                rows += row + "</tr>";
-            }
-        }
-        body.innerHTML = rows + `<tr><td class="time-col">19:00</td>${dates.map(() => '<td></td>').join('')}</tr>`;
-    }
-
-    function openConfirm(dateStr, time) {
-        const name = document.getElementById('user-name').value;
-        const tel = document.getElementById('user-tel').value;
-        const menu = document.getElementById('user-menu').value;
-        if(!name || !tel) return alert("名前と電話番号を入力してください");
-        localStorage.setItem('reserve-name', name);
-        localStorage.setItem('reserve-tel', tel);
-        document.getElementById('confirm-text').innerHTML = `日時：${dateStr} ${time}〜<br>コース：${menu}<br>名前：${name}様`;
-        document.getElementById('confirm-modal').style.display = 'flex';
-        document.getElementById('final-ok-btn').onclick = () => submit(name, tel, menu, dateStr, time);
-    }
-    function closeModal() { document.getElementById('confirm-modal').style.display = 'none'; }
-    async function submit(
+                        const checkTime =
