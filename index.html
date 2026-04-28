@@ -23,11 +23,23 @@
         tr.hour-border td { border-top: 1.5px solid var(--line-color); }
 
         .status-ok { color: var(--accent-color); font-weight: bold; cursor: pointer; font-size: 1.4em; }
-        .status-ng-past { color: #e0e0e0; font-size: 1.1em; font-weight: bold; } /* 過去×：薄いグレー */
-        .status-ng-booked { color: #e57373; font-size: 1.2em; font-weight: bold; } /* 予約済×：赤 */
+        .status-ng-past { color: #e0e0e0; font-size: 1.1em; font-weight: bold; }
+        .status-ng-booked { color: #e57373; font-size: 1.2em; font-weight: bold; }
         
-        /* 休業日のスタイル（結合せず1マスずつ塗る） */
-        .holiday-cell { background: #f5f5f5; color: #aaa; font-size: 0.9em; font-weight: bold; border-top: none !important; border-bottom: none !important; }
+        /* 休業日のスタイル（縦書き設定） */
+        .holiday-cell { 
+            background: #f5f5f5; 
+            color: #aaa; 
+            font-size: 1.1em; 
+            font-weight: bold; 
+            border-top: none !important; 
+            border-bottom: none !important;
+            writing-mode: vertical-rl; /* 縦書き */
+            text-orientation: upright; /* 文字を正立させる */
+            letter-spacing: 0.2em;
+            vertical-align: middle;
+            display: table-cell;
+        }
 
         .sun { color: #d32f2f; } .sat { color: #1976d2; }
         #confirm-modal { display: none; position: fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); align-items:center; justify-content:center; z-index:2000; }
@@ -71,91 +83,4 @@
     const dates = [];
 
     window.onload = async function() {
-        if(localStorage.getItem('reserve-name')) document.getElementById('user-name').value = localStorage.getItem('reserve-name');
-        if(localStorage.getItem('reserve-tel')) document.getElementById('user-tel').value = localStorage.getItem('reserve-tel');
-        try {
-            const res = await fetch(GAS_URL);
-            busySlots = await res.json();
-        } catch(e) { console.error(e); }
-        buildTable();
-    };
-
-    function buildTable() {
-        const header = document.getElementById('table-header');
-        const body = document.getElementById('table-body');
-        const nowMs = new Date().getTime();
-
-        // 1. 日付ヘッダー作成
-        header.innerHTML = '<th class="time-col">時間</th>';
-        for (let i = 0; i < 7; i++) {
-            const d = new Date(); d.setDate(d.getDate() + i);
-            const iso = `${d.getFullYear()}-${(d.getMonth()+1).toString().padStart(2,'0')}-${d.getDate().toString().padStart(2,'0')}`;
-            const isHoliday = busySlots.some(s => s.isLongEvent && new Date(s.start).toLocaleDateString('sv-SE') === iso);
-            dates.push({ y:d.getFullYear(), m:d.getMonth(), d:d.getDate(), iso:iso, isHoliday:isHoliday });
-            
-            const th = document.createElement('th');
-            const dayClass = d.getDay() === 0 ? 'sun' : (d.getDay() === 6 ? 'sat' : '');
-            th.innerHTML = `${d.getMonth()+1}/${d.getDate()}<br><span class="${dayClass}">(${daysArr[d.getDay()]})</span>`;
-            header.appendChild(th);
-        }
-
-        // 2. 時間行の生成
-        let rows = "";
-        for (let t = 9.5; t <= 19.0; t += 0.25) {
-            const h = Math.floor(t);
-            const m = (t % 1) * 60;
-            const timeStr = h.toString().padStart(2,'0') + ":" + m.toString().padStart(2,'0');
-            
-            let row = `<tr class="${m === 0 ? 'hour-border' : ''}">`;
-            row += `<td class="time-col">${timeStr}</td>`;
-
-            dates.forEach((dateObj) => {
-                if (dateObj.isHoliday) {
-                    // 休業日の場合は文字を出さず、背景色だけで繋がっているように見せる
-                    // 真ん中らへんの時間（14:00）にだけ「休業日」と表示
-                    const label = (timeStr === "14:00") ? "休業日" : "";
-                    row += `<td class="holiday-cell">${label}</td>`;
-                } else {
-                    const checkTime = new Date(dateObj.y, dateObj.m, dateObj.d, h, m).getTime();
-                    const busy = busySlots.find(s => checkTime >= s.start && checkTime < s.end);
-                    
-                    let content = "";
-                    if (checkTime < nowMs) {
-                        content = '<span class="status-ng-past">×</span>';
-                    } else if (busy) {
-                        content = '<span class="status-ng-booked">×</span>';
-                    } else {
-                        content = `<span class="status-ok" onclick="openConfirm('${dateObj.iso}', '${timeStr}')">◎</span>`;
-                    }
-                    row += `<td>${content}</td>`;
-                }
-            });
-            row += `</tr>`;
-            rows += row;
-        }
-        body.innerHTML = rows;
-    }
-
-    function openConfirm(dateStr, time) {
-        const name = document.getElementById('user-name').value;
-        const tel = document.getElementById('user-tel').value;
-        const menu = document.getElementById('user-menu').value;
-        if(!name || !tel) return alert("お名前と電話番号を入力してください");
-        localStorage.setItem('reserve-name', name);
-        localStorage.setItem('reserve-tel', tel);
-        document.getElementById('confirm-text').innerHTML = `日時：${dateStr} ${time}〜<br>コース：${menu}<br>名前：${name}様`;
-        document.getElementById('confirm-modal').style.display = 'flex';
-        document.getElementById('final-ok-btn').onclick = () => submit(name, tel, menu, dateStr, time);
-    }
-
-    function closeModal() { document.getElementById('confirm-modal').style.display = 'none'; }
-    async function submit(name, tel, menu, date, time) {
-        closeModal();
-        await fetch(GAS_URL, { method: "POST", body: JSON.stringify({ name, tel, menu, date, time }) });
-        alert("予約完了！");
-        location.reload();
-    }
-</script>
-
-</body>
-</html>
+        if(localStorage.
