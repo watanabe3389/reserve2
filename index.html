@@ -2,17 +2,55 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>予約テスト</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>予約システム</title>
     <style>
-        body { font-family: sans-serif; text-align: center; padding-top: 50px; }
-        .success-box { border: 2px solid #00c853; padding: 20px; display: inline-block; }
+        body { font-family: sans-serif; margin: 0; padding: 10px; background: #f4f4f4; }
+        h2 { text-align: center; color: #333; }
+        table { width: 100%; border-collapse: collapse; background: white; }
+        th, td { border: 1px solid #ddd; padding: 10px; text-align: center; }
+        th { background: #ff7e50; color: white; }
+        .btn-reserve { background: #ff7e50; color: white; border: none; padding: 5px 10px; cursor: pointer; border-radius: 3px; }
+        .btn-reserve:disabled { background: #ccc; }
     </style>
 </head>
 <body>
-    <div class="success-box">
-        <h1>🎉 表示成功！</h1>
-        <p>Googleのログイン地獄から脱出しました。</p>
-        <p>この画面が見えていれば、もう勝ちです。</p>
-    </div>
+
+<h2>予約空き状況</h2>
+
+<table>
+    <tr><th>時間</th><th>予約</th></tr>
+    <tr><td>09:30</td><td><button class="btn-reserve" onclick="reserve('09:30')">予約する</button></td></tr>
+    <tr><td>10:00</td><td><button class="btn-reserve" onclick="reserve('10:00')">予約する</button></td></tr>
+    <tr><td>10:30</td><td><button class="btn-reserve" onclick="reserve('10:30')">予約する</button></td></tr>
+</table>
+
+<script>
+    // 【
+    const GAS_URL = "https://script.google.com/macros/s/AKfycbxV1tINn7AdFyLeCuzQiFCLxgEiBpsOhsYDNwSc-RK_PW4ldnbNPGqHoQzzbkL_0mqlsA/exec";
+
+    function reserve(time) {
+        const name = prompt("お名前を入力してください");
+        if (!name) return;
+
+        const date = new Date().toISOString().split('T')[0]; // 今日
+        
+        // ボタンを無効化
+        event.target.disabled = true;
+        event.target.innerText = "送信中...";
+
+        fetch(GAS_URL, {
+            method: "POST",
+            body: JSON.stringify({ name: name, date: date, time: time }),
+            mode: "no-cors" // Googleのセキュリティ制限を回避
+        }).then(() => {
+            alert("予約リクエストを送信しました！カレンダーを確認してください。");
+            location.reload();
+        }).catch(err => {
+            alert("エラーが発生しました: " + err);
+        });
+    }
+</script>
+
 </body>
 </html>
