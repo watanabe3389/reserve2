@@ -5,71 +5,143 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>予約システム</title>
     <style>
-        body { font-family: 'Helvetica Neue', Arial, sans-serif; margin: 0; padding: 15px; background: #fdfdfd; }
-        h2 { text-align: center; color: #333; margin-bottom: 20px; border-bottom: 2px solid #ff7e50; padding-bottom: 10px; }
-        table { width: 100%; border-collapse: collapse; background: white; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
-        th, td { border: 1px solid #eee; padding: 12px; text-align: center; }
-        th { background: #ff7e50; color: white; font-weight: bold; }
-        tr:nth-child(even) { background: #fff9f7; }
-        .btn-reserve { background: #ff7e50; color: white; border: none; padding: 8px 15px; cursor: pointer; border-radius: 20px; font-weight: bold; transition: 0.3s; width: 100%; max-width: 120px; }
-        .btn-reserve:active { background: #e66a3e; transform: scale(0.95); }
-        .btn-reserve:disabled { background: #ccc; }
+        :root { --main-color: #5d4037; --sub-color: #8d6e63; }
+        body { font-family: sans-serif; margin: 0; padding: 15px; background: #efebe9; color: #3e2723; line-height: 1.6; }
+        .container { max-width: 500px; margin: 0 auto; background: white; padding: 20px; border-radius: 20px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+        h2 { text-align: center; color: var(--main-color); margin-bottom: 20px; border-bottom: 2px solid #d7ccc8; padding-bottom: 10px; }
+        .input-group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; font-weight: bold; font-size: 0.9em; }
+        input, select { width: 100%; padding: 12px; border: 1px solid #d7ccc8; border-radius: 10px; box-sizing: border-box; font-size: 16px; background: #fafafa; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { padding: 12px; border-bottom: 1px solid #f5f5f5; text-align: center; }
+        th { background: #d7ccc8; color: #5d4037; font-size: 0.8em; }
+        .btn-reserve { background: var(--main-color); color: white; border: none; padding: 10px; border-radius: 20px; font-weight: bold; cursor: pointer; width: 100%; }
+        .btn-reserve:disabled { background: #bdbdbd; }
+
+        /* 確認画面（モーダル）のスタイル */
+        #confirm-modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 100; align-items: center; justify-content: center; }
+        .modal-content { background: white; width: 85%; max-width: 400px; padding: 25px; border-radius: 20px; text-align: center; }
+        .modal-content h3 { color: var(--main-color); margin-top: 0; }
+        .confirm-info { text-align: left; background: #f9f9f9; padding: 15px; border-radius: 10px; margin: 15px 0; font-size: 0.95em; }
+        .modal-btns { display: flex; gap: 10px; }
+        .btn-cancel { flex: 1; padding: 12px; border-radius: 20px; border: 1px solid #ccc; background: white; cursor: pointer; }
+        .btn-ok { flex: 1; padding: 12px; border-radius: 20px; border: none; background: var(--main-color); color: white; font-weight: bold; cursor: pointer; }
     </style>
 </head>
 <body>
 
-<h2>📅 本日の空き状況</h2>
+<div class="container">
+    <h2>予約申込み</h2>
+    
+    <div class="input-group">
+        <label>お名前</label>
+        <input type="text" id="user-name" placeholder="山田 太郎">
+    </div>
+    
+    <div class="input-group">
+        <label>電話番号</label>
+        <input type="tel" id="user-tel" placeholder="09012345678">
+    </div>
 
-<table id="reserve-table">
-    <thead>
-        <tr><th>時間</th><th>予約</th></tr>
-    </thead>
-    <tbody id="table-body">
-        </tbody>
-</table>
+    <div class="input-group">
+        <label>メニュー（コース・料金）</label>
+        <select id="user-menu">
+            <optgroup label="整体コース">
+                <option value="整体60分 ¥6000">整体 60分 ¥6000</option>
+                <option value="整体90分 ¥9000">整体 90分 ¥9000</option>
+                <option value="整体120分 ¥12000">整体 120分 ¥12000</option>
+            </optgroup>
+            <optgroup label="もみほぐしコース">
+                <option value="もみほぐし45分 ¥4500">もみほぐし 45分 ¥4500</option>
+                <option value="もみほぐし60分 ¥6000" selected>もみほぐし 60分 ¥6000</option>
+                <option value="もみほぐし90分 ¥9000">もみほぐし 90分 ¥9000</option>
+                <option value="もみほぐし120分 ¥12000">もみほぐし 120分 ¥12000</option>
+            </optgroup>
+        </select>
+    </div>
+
+    <table>
+        <thead><tr><th>開始時間</th><th>予約</th></tr></thead>
+        <tbody id="table-body"></tbody>
+    </table>
+</div>
+
+<div id="confirm-modal">
+    <div class="modal-content">
+        <h3>予約内容の確認</h3>
+        <div class="confirm-info" id="confirm-text"></div>
+        <div class="modal-btns">
+            <button class="btn-cancel" onclick="closeModal()">修正する</button>
+            <button class="btn-ok" id="final-ok-btn">これで予約する</button>
+        </div>
+    </div>
+</div>
 
 <script>
-    // 【重要】ここにあなたのGASデプロイURLを貼り付けてください
-    const GAS_URL = "https://script.google.com/macros/s/AKfycbxV1tINn7AdFyLeCuzQiFCLxgEiBpsOhsYDNwSc-RK_PW4ldnbNPGqHoQzzbkL_0mqlsA/exec";
+    const GAS_URL = "https://script.google.com/macros/s/AKfycbzciKS8q13IWgSnpC4ZKvmJGS59UbmXl5SO41rQAMiIJ7uTCv6cEiVFP9iw1sdCBAY9hg/exec";
+    let selectedTime = "";
+    let currentBtn = null;
 
-    // 9:30から20:00までの30分刻みのリストを作る
-    const startTime = 9.5; // 9:30
-    const endTime = 20.0;   // 20:00
-    const tableBody = document.getElementById('table-body');
+    window.onload = function() {
+        if(localStorage.getItem('reserve-name')) document.getElementById('user-name').value = localStorage.getItem('reserve-name');
+        if(localStorage.getItem('reserve-tel')) document.getElementById('user-tel').value = localStorage.getItem('reserve-tel');
+        generateTable();
+    };
 
-    for (let t = startTime; t <= endTime; t += 0.5) {
-        const hour = Math.floor(t);
-        const min = (t % 1 === 0) ? "00" : "30";
-        const timeStr = hour.toString().padStart(2, '0') + ":" + min;
-
-        const row = `<tr>
-            <td>${timeStr}</td>
-            <td><button class="btn-reserve" onclick="reserve('${timeStr}', this)">予約する</button></td>
-        </tr>`;
-        tableBody.insertAdjacentHTML('beforeend', row);
+    function generateTable() {
+        const tableBody = document.getElementById('table-body');
+        for (let t = 9.5; t <= 20.0; t += 0.5) {
+            const timeStr = Math.floor(t).toString().padStart(2, '0') + ":" + (t % 1 === 0 ? "00" : "30");
+            tableBody.insertAdjacentHTML('beforeend', `<tr><td>${timeStr}</td><td><button class="btn-reserve" onclick="openConfirm('${timeStr}', this)">予約</button></td></tr>`);
+        }
     }
 
-    function reserve(time, btn) {
-        const name = prompt(time + " の予約ですね。お名前を入力してください");
-        if (!name) return;
+    function openConfirm(time, btn) {
+        const name = document.getElementById('user-name').value;
+        const tel = document.getElementById('user-tel').value;
+        const menu = document.getElementById('user-menu').value;
 
-        const date = new Date().toLocaleDateString('sv-SE'); // YYYY-MM-DD 形式
+        if (!name || !tel) {
+            alert("最初にお名前と電話番号を入力してください");
+            return;
+        }
+
+        selectedTime = time;
+        currentBtn = btn;
+
+        document.getElementById('confirm-text').innerHTML = `
+            <strong>日時：</strong>本日 ${time}〜<br>
+            <strong>メニュー：</strong>${menu}<br>
+            <strong>お名前：</strong>${name} 様<br>
+            <strong>連絡先：</strong>${tel}
+        `;
+        document.getElementById('confirm-modal').style.display = 'flex';
         
-        btn.disabled = true;
-        btn.innerText = "送信中...";
+        document.getElementById('final-ok-btn').onclick = function() {
+            submitReservation(name, tel, menu);
+        };
+    }
+
+    function closeModal() {
+        document.getElementById('confirm-modal').style.display = 'none';
+    }
+
+    function submitReservation(name, tel, menu) {
+        closeModal();
+        currentBtn.disabled = true;
+        currentBtn.innerText = "送信中...";
+
+        localStorage.setItem('reserve-name', name);
+        localStorage.setItem('reserve-tel', tel);
 
         fetch(GAS_URL, {
             method: "POST",
-            body: JSON.stringify({ name: name, date: date, time: time }),
+            body: JSON.stringify({ name: name, tel: tel, menu: menu, date: new Date().toLocaleDateString('sv-SE'), time: selectedTime }),
             mode: "no-cors"
         }).then(() => {
-            alert("予約を送信しました！カレンダーをご確認ください。");
-            btn.innerText = "済";
-            btn.style.background = "#ccc";
-        }).catch(err => {
-            alert("エラーが発生しました: " + err);
-            btn.disabled = false;
-            btn.innerText = "予約する";
+            alert("予約が完了しました！");
+            currentBtn.innerText = "完了";
+            currentBtn.style.background = "#bdbdbd";
         });
     }
 </script>
