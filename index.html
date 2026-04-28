@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>予約システム</title>
     <style>
-        :root { --main-color: #5d4037; --accent-color: #ff7e50; --bg-color: #efebe9; --line-color: #ccc; }
+        :root { --main-color: #5d4037; --accent-color: #ff7e50; --bg-color: #efebe9; --line-color: #999; }
         body { font-family: sans-serif; margin: 0; padding: 10px; background: var(--bg-color); color: #3e2723; }
         .container { max-width: 900px; margin: 0 auto; background: white; padding: 15px; border-radius: 15px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
         h2 { text-align: center; color: var(--main-color); font-size: 1.1em; margin-bottom: 15px; }
@@ -14,22 +14,25 @@
         label { font-weight: bold; font-size: 0.8em; }
         input, select { width: 100%; padding: 10px; margin: 5px 0 10px; border-radius: 8px; border: 1px solid #ddd; box-sizing: border-box; font-size: 16px; }
 
-        /* --- 週間表のスタイル（15分刻み・スッキリ版） --- */
+        /* --- 週間表のスタイル（全時間表示版） --- */
         .table-wrapper { overflow-x: auto; -webkit-overflow-scrolling: touch; border: 1px solid var(--line-color); border-radius: 5px; }
         table { width: 100%; border-collapse: collapse; min-width: 650px; table-layout: fixed; }
         
-        th, td { border: 1px solid #eee; padding: 8px 3px; text-align: center; font-size: 0.85em; }
+        th, td { border: 1px solid #ddd; padding: 8px 3px; text-align: center; font-size: 0.85em; }
         
         /* ヘッダー */
         th { background: #f0f0f0; position: sticky; top: 0; z-index: 10; border-bottom: 2px solid var(--line-color); border-right: 1px solid var(--line-color); }
         
-        /* 時間列：00分の時だけ文字を出す。右線を強調 */
-        .time-col { width: 55px; background: #f8f8f8; font-weight: bold; border-right: 2px solid var(--line-color) !important; color: #666; font-size: 0.8em; }
+        /* 時間列：すべての時間を表示。右線を強調 */
+        .time-col { width: 60px; background: #f8f8f8; font-weight: bold; border-right: 2px solid var(--line-color) !important; color: #555; font-size: 0.85em; }
 
-        /* 1時間ごとの区切り線を少しだけ強調 */
-        tr.hour-border td { border-top: 1.5px solid #bbb; }
+        /* 1時間ごとの区切り（00分）をわかりやすく */
+        tr.hour-border td { border-top: 1.5px solid var(--line-color); }
+        
+        /* 交互に薄い色をつけて行を見やすく */
+        tr:nth-child(even) { background-color: #fafafa; }
 
-        .status-ok { color: var(--accent-color); font-weight: bold; cursor: pointer; font-size: 1.3em; display: block; }
+        .status-ok { color: var(--accent-color); font-weight: bold; cursor: pointer; font-size: 1.3em; display: block; padding: 2px 0; }
         .status-ng { color: #ddd; font-size: 0.9em; display: block; }
         .sun { color: #d32f2f; } .sat { color: #1976d2; }
 
@@ -41,7 +44,7 @@
 <body>
 
 <div class="container">
-    <h2>📅 予約空き状況</h2>
+    <h2>📅 予約状況（15分刻み）</h2>
     
     <div class="input-area">
         <label>お名前</label><input type="text" id="user-name">
@@ -107,17 +110,16 @@
             header.appendChild(th);
         }
 
-        // 9:30から19:00まで 0.25(15分)刻み
+        // 9:30から19:00まで 15分刻みですべての時間を出力
         for (let t = 9.5; t <= 19.0; t += 0.25) {
             const tr = document.createElement('tr');
             const minutes = (t % 1) * 60;
             const timeStr = Math.floor(t).toString().padStart(2,'0') + ":" + minutes.toString().padStart(2,'0');
             
-            // 00分の行にだけ時間を表示し、境界線クラスをつける
-            const isHour = minutes === 0;
-            if (isHour) tr.className = 'hour-border';
+            // 00分（1時間おき）に太線の目印をつける
+            if (minutes === 0) tr.className = 'hour-border';
 
-            tr.innerHTML = `<td class="time-col">${isHour ? timeStr : ''}</td>`;
+            tr.innerHTML = `<td class="time-col">${timeStr}</td>`;
             
             dateList.forEach(dateStr => {
                 const checkTime = new Date(dateStr + ' ' + timeStr).getTime();
