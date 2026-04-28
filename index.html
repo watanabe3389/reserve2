@@ -9,48 +9,26 @@
         body { font-family: sans-serif; margin: 0; padding: 10px; background: var(--bg-color); color: #3e2723; }
         .container { max-width: 900px; margin: 0 auto; background: white; padding: 15px; border-radius: 15px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
         h2 { text-align: center; color: var(--main-color); margin-bottom: 15px; }
-
         .input-area { background: #fdfdfd; padding: 12px; border-radius: 10px; margin-bottom: 15px; border: 1px solid #d7ccc8; }
         label { font-weight: bold; font-size: 0.8em; }
         input, select { width: 100%; padding: 10px; margin: 5px 0 10px; border-radius: 8px; border: 1px solid #ddd; box-sizing: border-box; font-size: 16px; }
-
         .table-wrapper { overflow-x: auto; border: 1px solid var(--line-color); border-radius: 5px; }
         table { width: 100%; border-collapse: collapse; min-width: 650px; table-layout: fixed; }
-        th, td { border: 1px solid #ddd; padding: 10px 2px; text-align: center; font-size: 0.85em; height: 42px; overflow: hidden; }
+        th, td { border: 1px solid #ddd; padding: 10px 2px; text-align: center; font-size: 0.85em; height: 42px; }
         th { background: #f8f8f8; position: sticky; top: 0; z-index: 10; }
-        
         .time-col { width: 65px; background: #eee; font-weight: bold; border-right: 2px solid var(--line-color) !important; }
         tr.hour-border td { border-top: 1.5px solid var(--line-color); }
-
         .status-ok { color: var(--accent-color); font-weight: bold; cursor: pointer; font-size: 1.4em; }
         .status-ng-past { color: #e0e0e0; font-size: 1.1em; font-weight: bold; }
         .status-ng-booked { color: #e57373; font-size: 1.2em; font-weight: bold; }
-        
-        /* 休業日のスタイル：枠線を消して繋がって見せる */
-        .holiday-cell { 
-            background: #f5f5f5; 
-            color: #aaa; 
-            font-size: 1.1em; 
-            font-weight: bold; 
-            border-top: none !important; 
-            border-bottom: none !important;
-            vertical-align: middle;
-        }
-        /* 縦書き用スパン */
-        .v-text {
-            writing-mode: vertical-rl;
-            text-orientation: upright;
-            letter-spacing: 0.3em;
-            display: inline-block;
-        }
-
+        .holiday-cell { background: #f5f5f5; color: #aaa; border-top: none !important; border-bottom: none !important; vertical-align: middle; }
+        .v-text { writing-mode: vertical-rl; text-orientation: upright; letter-spacing: 0.3em; font-weight: bold; display: inline-block; }
         .sun { color: #d32f2f; } .sat { color: #1976d2; }
         #confirm-modal { display: none; position: fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); align-items:center; justify-content:center; z-index:2000; }
         .modal-content { background:white; padding:25px; border-radius:20px; width:85%; max-width:350px; text-align:center; }
     </style>
 </head>
 <body>
-
 <div class="container">
     <h2>📅 予約状況</h2>
     <div class="input-area">
@@ -63,7 +41,6 @@
             <option value="もみほぐし60分 ¥6000">もみほぐし 60分 ¥6000</option>
         </select>
     </div>
-
     <div class="table-wrapper">
         <table id="reserve-table">
             <thead><tr id="table-header"></tr></thead>
@@ -71,16 +48,14 @@
         </table>
     </div>
 </div>
-
 <div id="confirm-modal"><div class="modal-content">
     <h3>予約内容の確認</h3>
     <div id="confirm-text" style="text-align:left; margin:15px 0;"></div>
     <button id="final-ok-btn" style="background:var(--main-color); color:white; border:none; padding:12px; border-radius:25px; width:100%; font-weight:bold; cursor:pointer;">予約を確定する</button>
     <button onclick="closeModal()" style="margin-top:10px; background:none; border:none; color:#888; cursor:pointer;">戻る</button>
 </div></div>
-
 <script>
-    const GAS_URL = "https://script.google.com/macros/s/AKfycbywNPCyhk0tyin9vyBratW1HMoUmKyGK_gfrQC_455JYEMnnWFC3p_E5Dflg9869Bf7iQ/exec";
+    const GAS_URL = "https://script.google.com/macros/s/AKfycbywNPCyhk0tyin9vyBratW1HMoUmKyGK_gfrQC_455JYEMnnWFC3p_E5Dflg9869Bf7iQ/exec".trim();
     const daysArr = ['日','月','火','水','木','金','土'];
     let busySlots = [];
     const dates = [];
@@ -88,19 +63,22 @@
     window.onload = async function() {
         if(localStorage.getItem('reserve-name')) document.getElementById('user-name').value = localStorage.getItem('reserve-name');
         if(localStorage.getItem('reserve-tel')) document.getElementById('user-tel').value = localStorage.getItem('reserve-tel');
+        
         try {
             const res = await fetch(GAS_URL);
-            busySlots = await res.json();
-        } catch(e) { console.error(e); }
+            if(res.ok) busySlots = await res.json();
+        } catch(e) { console.error("GAS連携失敗:", e); }
+        
         buildTable();
     };
 
     function buildTable() {
         const header = document.getElementById('table-header');
         const body = document.getElementById('table-body');
-        const nowMs = new Date().getTime();
+        const nowMs = Date.now();
 
-        // 1. 日付列の準備
+        // 日付情報の整理
+        dates.length = 0;
         header.innerHTML = '<th class="time-col">時間</th>';
         for (let i = 0; i < 7; i++) {
             const d = new Date(); d.setDate(d.getDate() + i);
@@ -114,20 +92,55 @@
             header.appendChild(th);
         }
 
-        // 2. 時間行を一つずつ作成（エラー回避のため条件分岐をシンプルに）
+        // 表の組み立て（9:30 - 19:00）
         let rowsHtml = "";
-        for (let t = 9.5; t <= 19.0; t += 0.25) {
-            const h = Math.floor(t);
-            const m = (t % 1) * 60;
-            const timeStr = h.toString().padStart(2,'0') + ":" + m.toString().padStart(2,'0');
+        for (let min = 570; min <= 1140; min += 15) {
+            const hh = Math.floor(min / 60);
+            const mm = min % 60;
+            const timeStr = `${hh.toString().padStart(2,'0')}:${mm.toString().padStart(2,'0')}`;
             
-            let row = `<tr class="${m === 0 ? 'hour-border' : ''}">`;
-            row += `<td class="time-col">${timeStr}</td>`; // 時間列を確定
+            let row = `<tr class="${mm === 0 ? 'hour-border' : ''}">`;
+            row += `<td class="time-col">${timeStr}</td>`;
 
             dates.forEach((dateObj) => {
                 if (dateObj.isHoliday) {
-                    // 14:00の行にだけ文字を入れる。それ以外は空のセル。
-                    const text = (timeStr === "14:00") ? '<span class="v-text">休業日</span>' : '';
+                    const text = (min === 855) ? '<span class="v-text">休業日</span>' : '';
                     row += `<td class="holiday-cell">${text}</td>`;
                 } else {
-                    const checkTime = new Date(dateObj.y, date
+                    const checkTime = new Date(dateObj.y, dateObj.m, dateObj.d, hh, mm).getTime();
+                    const busy = busySlots.find(s => checkTime >= s.start && checkTime < s.end);
+                    if (checkTime < nowMs) {
+                        row += `<td><span class="status-ng-past">×</span></td>`;
+                    } else if (busy) {
+                        row += `<td><span class="status-ng-booked">×</span></td>`;
+                    } else {
+                        row += `<td><span class="status-ok" onclick="openConfirm('${dateObj.iso}', '${timeStr}')">◎</span></td>`;
+                    }
+                }
+            });
+            rowsHtml += row + `</tr>`;
+        }
+        body.innerHTML = rowsHtml;
+    }
+
+    function openConfirm(dateStr, time) {
+        const name = document.getElementById('user-name').value;
+        const tel = document.getElementById('user-tel').value;
+        const menu = document.getElementById('user-menu').value;
+        if(!name || !tel) return alert("お名前と電話番号を入力してください");
+        localStorage.setItem('reserve-name', name);
+        localStorage.setItem('reserve-tel', tel);
+        document.getElementById('confirm-text').innerHTML = `日時：${dateStr} ${time}〜<br>コース：${menu}<br>名前：${name}様`;
+        document.getElementById('confirm-modal').style.display = 'flex';
+        document.getElementById('final-ok-btn').onclick = () => submit(name, tel, menu, dateStr, time);
+    }
+    function closeModal() { document.getElementById('confirm-modal').style.display = 'none'; }
+    async function submit(name, tel, menu, date, time) {
+        closeModal();
+        await fetch(GAS_URL, { method: "POST", body: JSON.stringify({ name, tel, menu, date, time }) });
+        alert("予約完了！");
+        location.reload();
+    }
+</script>
+</body>
+</html>
