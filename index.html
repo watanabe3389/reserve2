@@ -3,35 +3,35 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>予約状況（週間）</title>
+    <title>予約システム</title>
     <style>
-        :root { --main-color: #5d4037; --accent-color: #ff7e50; --bg-color: #efebe9; --border-color: #d7ccc8; }
+        :root { --main-color: #5d4037; --accent-color: #ff7e50; --bg-color: #efebe9; --line-color: #ccc; }
         body { font-family: sans-serif; margin: 0; padding: 10px; background: var(--bg-color); color: #3e2723; }
         .container { max-width: 900px; margin: 0 auto; background: white; padding: 15px; border-radius: 15px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
-        h2 { text-align: center; color: var(--main-color); font-size: 1.2em; margin-bottom: 15px; }
+        h2 { text-align: center; color: var(--main-color); font-size: 1.1em; margin-bottom: 15px; }
 
-        .input-area { background: #fdfdfd; padding: 15px; border-radius: 10px; margin-bottom: 20px; border: 1px solid var(--border-color); }
+        .input-area { background: #fdfdfd; padding: 12px; border-radius: 10px; margin-bottom: 15px; border: 1px solid #d7ccc8; }
         label { font-weight: bold; font-size: 0.8em; }
         input, select { width: 100%; padding: 10px; margin: 5px 0 10px; border-radius: 8px; border: 1px solid #ddd; box-sizing: border-box; font-size: 16px; }
 
-        /* --- 週間表のスタイル（修正箇所） --- */
-        .table-wrapper { overflow-x: auto; -webkit-overflow-scrolling: touch; margin-top: 10px; border: 1px solid var(--border-color); border-radius: 8px; }
-        table { width: 100%; border-collapse: collapse; min-width: 600px; table-layout: fixed; }
-        th, td { border: 1px solid #e0e0e0; padding: 8px 3px; text-align: center; font-size: 0.85em; }
-        th { background: #f8f8f8; position: sticky; top: 0; z-index: 10; border-bottom: 2px solid var(--border-color); padding: 12px 3px; }
-        .time-col { width: 65px; background: #fdfdfd; font-weight: bold; color: var(--main-color); font-size: 0.9em; border-right: 2px solid var(--border-color); }
+        /* --- 週間表のスタイル（15分刻み・スッキリ版） --- */
+        .table-wrapper { overflow-x: auto; -webkit-overflow-scrolling: touch; border: 1px solid var(--line-color); border-radius: 5px; }
+        table { width: 100%; border-collapse: collapse; min-width: 650px; table-layout: fixed; }
         
-        /* 00分（1時間ごと）の行を強調する */
-        tr.hour-mark td { border-top: 2px solid #bbb; }
-        /* 30分の行の線を少し薄くする（メリハリをつける） */
-        tr.half-hour-mark td { border-top: 1px solid #eee; }
-        /* 時間列は常に強調 */
-        tr td.time-col { border-top: 1px solid #e0e0e0 !important; border-bottom: 1px solid #e0e0e0 !important; }
-        tr.hour-mark td.time-col { border-top: 2px solid #bbb !important; }
+        th, td { border: 1px solid #eee; padding: 8px 3px; text-align: center; font-size: 0.85em; }
+        
+        /* ヘッダー */
+        th { background: #f0f0f0; position: sticky; top: 0; z-index: 10; border-bottom: 2px solid var(--line-color); border-right: 1px solid var(--line-color); }
+        
+        /* 時間列：00分の時だけ文字を出す。右線を強調 */
+        .time-col { width: 55px; background: #f8f8f8; font-weight: bold; border-right: 2px solid var(--line-color) !important; color: #666; font-size: 0.8em; }
 
-        .status-ok { color: var(--accent-color); font-weight: bold; cursor: pointer; font-size: 1.4em; display: block; padding: 5px 0; }
-        .status-ng { color: #ccc; font-size: 0.9em; display: block; padding: 5px 0; }
-        .sun { color: #e57373; } .sat { color: #64b5f6; }
+        /* 1時間ごとの区切り線を少しだけ強調 */
+        tr.hour-border td { border-top: 1.5px solid #bbb; }
+
+        .status-ok { color: var(--accent-color); font-weight: bold; cursor: pointer; font-size: 1.3em; display: block; }
+        .status-ng { color: #ddd; font-size: 0.9em; display: block; }
+        .sun { color: #d32f2f; } .sat { color: #1976d2; }
 
         /* モーダル */
         #confirm-modal { display: none; position: fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); align-items:center; justify-content:center; z-index:1000; }
@@ -44,8 +44,8 @@
     <h2>📅 予約空き状況</h2>
     
     <div class="input-area">
-        <label>お名前（初回のみ）</label><input type="text" id="user-name">
-        <label>電話番号（初回のみ）</label><input type="tel" id="user-tel">
+        <label>お名前</label><input type="text" id="user-name">
+        <label>電話番号</label><input type="tel" id="user-tel">
         <label>メニュー</label>
         <select id="user-menu">
             <optgroup label="整体コース">
@@ -64,22 +64,17 @@
 
     <div class="table-wrapper">
         <table>
-            <thead>
-                <tr id="table-header">
-                    <th class="time-col">時間</th>
-                </tr>
-            </thead>
-            <tbody id="table-body">
-            </tbody>
+            <thead><tr id="table-header"><th class="time-col">時間</th></tr></thead>
+            <tbody id="table-body"></tbody>
         </table>
     </div>
 </div>
 
 <div id="confirm-modal"><div class="modal-content">
     <h3>予約内容の確認</h3>
-    <div id="confirm-text" style="text-align:left; margin-bottom:20px; line-height:1.8;"></div>
-    <button id="final-ok-btn" style="background:var(--main-color); color:white; border:none; padding:12px; border-radius:25px; width:100%; font-weight:bold; font-size:16px;">この内容で確定する</button>
-    <button onclick="closeModal()" style="margin-top:15px; background:none; border:none; color:#888; cursor:pointer;">キャンセル</button>
+    <div id="confirm-text" style="text-align:left; margin:15px 0; font-size:0.95em; line-height:1.6;"></div>
+    <button id="final-ok-btn" style="background:var(--main-color); color:white; border:none; padding:12px; border-radius:25px; width:100%; font-weight:bold; cursor:pointer;">予約を確定する</button>
+    <button onclick="closeModal()" style="margin-top:15px; background:none; border:none; color:#888; cursor:pointer;">修正する</button>
 </div></div>
 
 <script>
@@ -91,12 +86,11 @@
     window.onload = async function() {
         if(localStorage.getItem('reserve-name')) document.getElementById('user-name').value = localStorage.getItem('reserve-name');
         if(localStorage.getItem('reserve-tel')) document.getElementById('user-tel').value = localStorage.getItem('reserve-tel');
-        
         try {
             const res = await fetch(GAS_URL);
             busySlots = await res.json();
             initTable();
-        } catch(e) { alert("データ取得に失敗しました。"); }
+        } catch(e) { console.error(e); }
     };
 
     function initTable() {
@@ -104,8 +98,7 @@
         const body = document.getElementById('table-body');
         
         for (let i = 0; i < 7; i++) {
-            const d = new Date();
-            d.setDate(d.getDate() + i);
+            const d = new Date(); d.setDate(d.getDate() + i);
             const dateStr = d.toLocaleDateString('sv-SE');
             dateList.push(dateStr);
             const th = document.createElement('th');
@@ -114,25 +107,23 @@
             header.appendChild(th);
         }
 
-        for (let t = 9.5; t <= 19.0; t += 0.5) {
-            const isHour = (t % 1 === 0);
-            const timeStr = Math.floor(t).toString().padStart(2,'0') + ":" + (isHour ? "00" : "30");
+        // 9:30から19:00まで 0.25(15分)刻み
+        for (let t = 9.5; t <= 19.0; t += 0.25) {
             const tr = document.createElement('tr');
+            const minutes = (t % 1) * 60;
+            const timeStr = Math.floor(t).toString().padStart(2,'0') + ":" + minutes.toString().padStart(2,'0');
             
-            // 00分か30分かでクラスを使い分ける
-            tr.className = isHour ? 'hour-mark' : 'half-hour-mark';
-            
-            tr.innerHTML = `<td class="time-col">${timeStr}</td>`;
+            // 00分の行にだけ時間を表示し、境界線クラスをつける
+            const isHour = minutes === 0;
+            if (isHour) tr.className = 'hour-border';
+
+            tr.innerHTML = `<td class="time-col">${isHour ? timeStr : ''}</td>`;
             
             dateList.forEach(dateStr => {
                 const checkTime = new Date(dateStr + ' ' + timeStr).getTime();
                 const isBusy = busySlots.some(slot => checkTime >= slot.start && checkTime < slot.end) || checkTime < new Date().getTime();
                 const td = document.createElement('td');
-                if (isBusy) {
-                    td.innerHTML = '<span class="status-ng">×</span>';
-                } else {
-                    td.innerHTML = `<span class="status-ok" onclick="openConfirm('${dateStr}', '${timeStr}')">◎</span>`;
-                }
+                td.innerHTML = isBusy ? '<span class="status-ng">×</span>' : `<span class="status-ok" onclick="openConfirm('${dateStr}', '${timeStr}')">◎</span>`;
                 tr.appendChild(td);
             });
             body.appendChild(tr);
@@ -143,14 +134,9 @@
         const name = document.getElementById('user-name').value;
         const tel = document.getElementById('user-tel').value;
         const menu = document.getElementById('user-menu').value;
-        if(!name || !tel) return alert("最初にお名前と電話番号を入力してください");
+        if(!name || !tel) return alert("お名前と電話番号を入力してください");
         const dateObj = new Date(date);
-        const dateFmt = `${dateObj.getMonth()+1}月${dateObj.getDate()}日(${daysArr[dateObj.getDay()]})`;
-        document.getElementById('confirm-text').innerHTML = `
-            <strong>日時：</strong>${dateFmt} ${time}〜<br>
-            <strong>コース：</strong>${menu}<br>
-            <strong>お名前：</strong>${name}様
-        `;
+        document.getElementById('confirm-text').innerHTML = `<strong>日時：</strong>${dateObj.getMonth()+1}/${dateObj.getDate()}(${daysArr[dateObj.getDay()]}) ${time}〜<br><strong>コース：</strong>${menu}<br><strong>お名前：</strong>${name}様`;
         document.getElementById('confirm-modal').style.display = 'flex';
         document.getElementById('final-ok-btn').onclick = () => submit(name, tel, menu, date, time);
     }
@@ -158,9 +144,7 @@
     function closeModal() { document.getElementById('confirm-modal').style.display = 'none'; }
     async function submit(name, tel, menu, date, time) {
         closeModal();
-        localStorage.setItem('reserve-name', name);
-        localStorage.setItem('reserve-tel', tel);
-        await fetch(GAS_URL, {method: "POST",body: JSON.stringify({ name, tel, menu, date, time })});
+        await fetch(GAS_URL, {method: "POST", body: JSON.stringify({ name, tel, menu, date, time })});
         alert("予約が完了しました！");
         location.reload();
     }
