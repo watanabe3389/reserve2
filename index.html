@@ -45,7 +45,7 @@
 
     <div class="week-nav">
         <button id="prev-btn" class="nav-btn">＜ 前週</button>
-        <div id="current-week-display">読み込み中...</div>
+        <div id="current-week-display">日付を取得中...</div>
         <button id="next-btn" class="nav-btn">翌週 ＞</button>
     </div>
 
@@ -80,20 +80,32 @@
     let busySlots = [];
     let startOffset = 0; 
 
-    window.onload = async function() {
+    // 1. ページを開いたら「まず」表を作る
+    window.onload = function() {
         if(localStorage.getItem('reserve-name')) document.getElementById('user-name').value = localStorage.getItem('reserve-name');
         if(localStorage.getItem('reserve-tel')) document.getElementById('user-tel').value = localStorage.getItem('reserve-tel');
         
-        // ボタンのクリックイベントをここで確実に設定
         document.getElementById('prev-btn').onclick = () => changeWeek(-7);
         document.getElementById('next-btn').onclick = () => changeWeek(7);
 
+        // まず表を描画（データなしの状態）
+        buildTable();
+
+        // その後でGASにデータを取りに行く
+        loadData();
+    };
+
+    async function loadData() {
         try {
             const res = await fetch(GAS_URL);
-            busySlots = await res.json();
-        } catch(e) { console.error(e); }
-        buildTable();
-    };
+            if (res.ok) {
+                busySlots = await res.json();
+                buildTable(); // データが取れたら×を付けて更新
+            }
+        } catch(e) {
+            console.log("GAS読み込み失敗ですが表は維持します");
+        }
+    }
 
     function changeWeek(diff) {
         startOffset += diff;
@@ -108,30 +120,25 @@
         const nowMs = Date.now();
         const dates = [];
 
-        // 前週ボタンの制御
         document.getElementById('prev-btn').disabled = (startOffset <= 0);
 
-        // 表のクリア
         header.innerHTML = '<th class="time-col">時間</th>';
-        body.innerHTML = "";
-
-        // 日付データの作成
         for (let i = 0; i < 7; i++) {
             const d = new Date();
             d.setDate(d.getDate() + startOffset + i);
             const iso = `${d.getFullYear()}-${(d.getMonth()+1).toString().padStart(2,'0')}-${d.getDate().toString().padStart(2,'0')}`;
+            // 休業日の判定
             const isHoliday = busySlots.some(s => s.isLongEvent && new Date(s.start).toLocaleDateString('sv-SE') === iso);
             dates.push({ y:d.getFullYear(), m:d.getMonth(), d:d.getDate(), iso:iso, isHoliday:isHoliday });
             
-            const th = document.createElement('th');
             const dayClass = d.getDay() === 0 ? 'sun' : (d.getDay() === 6 ? 'sat' : '');
+            const th = document.createElement('th');
             th.innerHTML = `${d.getMonth()+1}/${d.getDate()}<br><span class="${dayClass}">(${daysArr[d.getDay()]})</span>`;
             header.appendChild(th);
 
             if(i === 0) weekDisplay.innerText = `${d.getFullYear()}年 ${d.getMonth()+1}月`;
         }
 
-        // 時間枠の作成
         let rowsHtml = "";
         for (let h = 9; h <= 18; h++) {
             for (let m = 0; m <= 45; m += 15) {
@@ -144,4 +151,39 @@
                         const text = (h === 14 && m === 0) ? '<span class="v-text">休業日</span>' : '';
                         row += `<td class="holiday-cell">${text}</td>`;
                     } else {
-                        const checkTime =
+                        const checkTime = new Date(dateObj.y, dateObj.m, dateObj.d, h, m).getTime();
+                        const busy = busySlots.find(s => checkTime >= s.start && checkTime < s.end);
+                        if (checkTime < nowMs) row += `<td><span class="status-ng-past">×</span></td>`;
+                        else if (busy) row += `<td><span class="status-ng-booked">×</span></td>`;
+                        else row += `<td><span class="status-ok" onclick="openConfirm('${dateObj.iso}', '${timeStr}')">◎</span></td>`;
+                    }
+                });
+                rowsHtml += row + "</tr>";
+            }
+        }
+        let lastRow = `<tr><td class="time-col">19:00</td>`;
+        dates.forEach(() => { lastRow += `<td></td>`; });
+        body.innerHTML = rowsHtml + lastRow + "</tr>";
+    }
+
+    function openConfirm(dateStr, time) {
+        const name = document.getElementById('user-name').value;
+        const tel = document.getElementById('user-tel').value;
+        const menu = document.getElementById('user-menu').value;
+        if(!name || !tel) return alert("お名前と電話番号を入力してください");
+        localStorage.setItem('reserve-name', name);
+        localStorage.setItem('reserve-tel', tel);
+        document.getElementById('confirm-text').innerHTML = `日時：${dateStr} ${time}〜<br>コース：${menu}<br>名前：${name}様`;
+        document.getElementById('confirm-modal').style.display = 'flex';
+        document.getElementById('final-ok-btn').onclick = () => submit(name, tel, menu, dateStr, time);
+    }
+    function closeModal() { document.getElementById('confirm-modal').style.display = 'none'; }
+    async function submit(name, tel, menu, date, time) {
+        closeModal();
+        await fetch(GAS_URL, { method: "POST", body: JSON.stringify({ name, tel, menu, date, time }) });
+        alert("予約完了！");
+        location.reload();
+    }
+</script>
+</body>
+</html>
