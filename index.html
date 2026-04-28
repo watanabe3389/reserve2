@@ -5,29 +5,27 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>予約システム</title>
     <style>
-        :root { --main-color: #5d4037; --accent-color: #ff7e50; --bg-color: #efebe9; --line-color: #999; }
+        :root { --main-color: #5d4037; --accent-color: #ff7e50; --bg-color: #efebe9; --line-color: #bbb; }
         body { font-family: sans-serif; margin: 0; padding: 10px; background: var(--bg-color); color: #3e2723; }
         .container { max-width: 900px; margin: 0 auto; background: white; padding: 15px; border-radius: 15px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
-        h2 { text-align: center; color: var(--main-color); font-size: 1.1em; margin-bottom: 15px; }
+        h2 { text-align: center; color: var(--main-color); margin-bottom: 15px; }
 
         .input-area { background: #fdfdfd; padding: 12px; border-radius: 10px; margin-bottom: 15px; border: 1px solid #d7ccc8; }
-        label { font-weight: bold; font-size: 0.8em; }
         input, select { width: 100%; padding: 10px; margin: 5px 0 10px; border-radius: 8px; border: 1px solid #ddd; box-sizing: border-box; font-size: 16px; }
 
-        .table-wrapper { overflow-x: auto; -webkit-overflow-scrolling: touch; border: 1px solid var(--line-color); border-radius: 5px; }
-        table { width: 100%; border-collapse: collapse; min-width: 650px; table-layout: fixed; }
-        th, td { border: 1px solid #ddd; padding: 8px 3px; text-align: center; font-size: 0.85em; }
-        th { background: #f0f0f0; position: sticky; top: 0; z-index: 10; border-bottom: 2px solid var(--line-color); }
+        .table-wrapper { overflow-x: auto; border: 1px solid var(--line-color); border-radius: 5px; }
+        table { width: 100%; border-collapse: collapse; min-width: 650px; }
+        th, td { border: 1px solid #ddd; padding: 8px 2px; text-align: center; font-size: 0.85em; }
+        th { background: #f8f8f8; position: sticky; top: 0; }
         
-        .time-col { width: 60px; background: #f8f8f8; font-weight: bold; border-right: 2px solid var(--line-color) !important; color: #555; }
+        .time-col { width: 65px; background: #eee; font-weight: bold; border-right: 2px solid var(--line-color) !important; }
         tr.hour-border td { border-top: 1.5px solid var(--line-color); }
-        tr:nth-child(even) { background-color: #fafafa; }
 
-        .status-ok { color: var(--accent-color); font-weight: bold; cursor: pointer; font-size: 1.3em; display: block; }
-        .status-ng { display: block; line-height: 1.2; font-weight: normal; }
-        
+        .status-ok { color: var(--accent-color); font-weight: bold; cursor: pointer; font-size: 1.3em; }
+        .status-ng { color: #aaa; font-size: 0.75em; }
         .sun { color: #d32f2f; } .sat { color: #1976d2; }
-        #confirm-modal { display: none; position: fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); align-items:center; justify-content:center; z-index:1000; }
+
+        #confirm-modal { display: none; position: fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); align-items:center; justify-content:center; }
         .modal-content { background:white; padding:25px; border-radius:20px; width:85%; max-width:350px; text-align:center; }
     </style>
 </head>
@@ -35,29 +33,20 @@
 
 <div class="container">
     <h2>📅 予約状況</h2>
-    
     <div class="input-area">
         <label>お名前</label><input type="text" id="user-name">
         <label>電話番号</label><input type="tel" id="user-tel">
         <label>メニュー</label>
         <select id="user-menu">
-            <optgroup label="整体コース">
-                <option value="整体60分 ¥6000" selected>整体 60分 ¥6000</option>
-                <option value="整体90分 ¥9000">整体 90分 ¥9000</option>
-                <option value="整体120分 ¥12000">整体 120分 ¥12000</option>
-            </optgroup>
-            <optgroup label="もみほぐしコース">
-                <option value="もみほぐし45分 ¥4500">もみほぐし 45分 ¥4500</option>
-                <option value="もみほぐし60分 ¥6000">もみほぐし 60分 ¥6000</option>
-                <option value="もみほぐし90分 ¥9000">もみほぐし 90分 ¥9000</option>
-                <option value="もみほぐし120分 ¥12000">もみほぐし 120分 ¥12000</option>
-            </optgroup>
+            <option value="整体60分 ¥6000">整体 60分 ¥6000</option>
+            <option value="整体90分 ¥9000">整体 90分 ¥9000</option>
+            <option value="もみほぐし60分 ¥6000">もみほぐし 60分 ¥6000</option>
         </select>
     </div>
 
     <div class="table-wrapper">
-        <table>
-            <thead><tr id="table-header"><th class="time-col">時間</th></tr></thead>
+        <table id="reserve-table">
+            <thead><tr id="table-header"></tr></thead>
             <tbody id="table-body"></tbody>
         </table>
     </div>
@@ -65,99 +54,111 @@
 
 <div id="confirm-modal"><div class="modal-content">
     <h3>予約内容の確認</h3>
-    <div id="confirm-text" style="text-align:left; margin:15px 0; font-size:0.95em; line-height:1.6;"></div>
-    <button id="final-ok-btn" style="background:var(--main-color); color:white; border:none; padding:12px; border-radius:25px; width:100%; font-weight:bold; cursor:pointer;">予約を確定する</button>
-    <button onclick="closeModal()" style="margin-top:15px; background:none; border:none; color:#888; cursor:pointer;">修正する</button>
+    <div id="confirm-text" style="text-align:left; margin:15px 0;"></div>
+    <button id="final-ok-btn" style="background:var(--main-color); color:white; border:none; padding:12px; border-radius:25px; width:100%;">予約を確定する</button>
+    <button onclick="closeModal()" style="margin-top:10px; background:none; border:none; color:#888;">戻る</button>
 </div></div>
 
 <script>
     const GAS_URL = "https://script.google.com/macros/s/AKfycbyXu3m-8DwoG18LXQk7O0SfTVl2NfXwA3_sl_Fbg1yPb0B5n5tzKZUT6DDxI1u_bYIZxw/exec";
-    let busySlots = [];
     const daysArr = ['日','月','火','水','木','金','土'];
-    const dateList = [];
+    let busySlots = [];
 
     window.onload = async function() {
+        // 保存データの復元
         if(localStorage.getItem('reserve-name')) document.getElementById('user-name').value = localStorage.getItem('reserve-name');
         if(localStorage.getItem('reserve-tel')) document.getElementById('user-tel').value = localStorage.getItem('reserve-tel');
+
         try {
             const res = await fetch(GAS_URL);
             busySlots = await res.json();
-            initTable();
-        } catch(e) { 
-            console.error("データ取得失敗:", e);
-            alert("データの読み込みに失敗しました。ページを更新してください。");
-        }
+        } catch(e) { console.error("データ取得エラー", e); }
+        
+        buildTable();
     };
 
-    function initTable() {
+    function buildTable() {
         const header = document.getElementById('table-header');
         const body = document.getElementById('table-body');
         const nowMs = new Date().getTime();
-        
-        // 1. 日付ヘッダーの生成
+        const dates = [];
+
+        // ヘッダー（日付）作成
+        header.innerHTML = '<th class="time-col">時間</th>';
         for (let i = 0; i < 7; i++) {
             const d = new Date();
             d.setDate(d.getDate() + i);
-            const dateStr = d.toLocaleDateString('sv-SE');
-            dateList.push(dateStr);
-            
+            dates.push({
+                y: d.getFullYear(),
+                m: d.getMonth() + 1,
+                d: d.getDate(),
+                day: d.getDay(),
+                iso: `${d.getFullYear()}-${(d.getMonth()+1).toString().padStart(2,'0')}-${d.getDate().toString().padStart(2,'0')}`
+            });
             const th = document.createElement('th');
             const dayClass = d.getDay() === 0 ? 'sun' : (d.getDay() === 6 ? 'sat' : '');
             th.innerHTML = `${d.getMonth()+1}/${d.getDate()}<br><span class="${dayClass}">(${daysArr[d.getDay()]})</span>`;
             header.appendChild(th);
         }
 
-        // 2. 時間行の生成 (9:30〜19:00, 15分刻み)
+        // ボディ（時間・枠）作成
+        let rows = "";
         for (let t = 9.5; t <= 19.0; t += 0.25) {
-            const hour = Math.floor(t);
-            const min = (t % 1) * 60;
-            const timeStr = hour.toString().padStart(2,'0') + ":" + min.toString().padStart(2,'0');
+            const h = Math.floor(t);
+            const m = (t % 1) * 60;
+            const timeStr = h.toString().padStart(2,'0') + ":" + m.toString().padStart(2,'0');
             
-            const tr = document.createElement('tr');
-            if (min === 0) tr.classList.add('hour-border');
-            
-            let html = `<td class="time-col">${timeStr}</td>`;
-            
-            // 各日付のセルを作成
-            dateList.forEach(dateStr => {
-                const checkTime = new Date(dateStr + ' ' + timeStr).getTime();
-                const busySlot = busySlots.find(s => checkTime >= s.start && checkTime < s.end);
+            let row = `<tr class="${m === 0 ? 'hour-border' : ''}">`;
+            row += `<td class="time-col">${timeStr}</td>`; // ここで時間が必ず入る
+
+            dates.forEach(dateObj => {
+                // iPhone等でも動く安全な日付解釈
+                const checkTime = new Date(dateObj.y, dateObj.m - 1, dateObj.d, h, m).getTime();
+                const busy = busySlots.find(s => checkTime >= s.start && checkTime < s.end);
                 
-                let content = '';
+                let content = "";
                 if (checkTime < nowMs) {
-                    content = '<span class="status-ng" style="color:#bbb; font-size:0.75em;">受付終了</span>';
-                } else if (busySlot) {
-                    if (busySlot.isLongEvent) {
-                        content = '<span class="status-ng" style="color:#888; font-size:0.8em;">休業日</span>';
+                    content = '<span class="status-ng">受付終了</span>';
+                } else if (busy) {
+                    if (busy.isLongEvent) {
+                        content = '<span class="status-ng">休業日</span>';
                     } else {
                         content = '<span class="status-ng" style="color:#e57373; font-size:1.2em; font-weight:bold;">×</span>';
                     }
                 } else {
-                    content = `<span class="status-ok" onclick="openConfirm('${dateStr}', '${timeStr}')">◎</span>`;
+                    content = `<span class="status-ok" onclick="openConfirm('${dateObj.iso}', '${timeStr}')">◎</span>`;
                 }
-                html += `<td>${content}</td>`;
+                row += `<td>${content}</td>`;
             });
-            
-            tr.innerHTML = html;
-            body.appendChild(tr);
+            row += `</tr>`;
+            rows += row;
         }
+        body.innerHTML = rows;
     }
 
-    function openConfirm(date, time) {
+    function openConfirm(dateStr, time) {
         const name = document.getElementById('user-name').value;
         const tel = document.getElementById('user-tel').value;
         const menu = document.getElementById('user-menu').value;
-        if(!name || !tel) return alert("お名前と電話番号を先に入力してください");
-        
-        const d = new Date(date);
-        const dateDisplay = `${d.getMonth()+1}/${d.getDate()}(${daysArr[d.getDay()]})`;
-        document.getElementById('confirm-text').innerHTML = `
-            <strong>日時：</strong>${dateDisplay} ${time}〜<br>
-            <strong>コース：</strong>${menu}<br>
-            <strong>お名前：</strong>${name}様
-        `;
+        if(!name || !tel) return alert("お名前と電話番号を入力してください");
+
+        localStorage.setItem('reserve-name', name);
+        localStorage.setItem('reserve-tel', tel);
+
+        document.getElementById('confirm-text').innerHTML = `日時：${dateStr} ${time}〜<br>コース：${menu}<br>名前：${name}様`;
         document.getElementById('confirm-modal').style.display = 'flex';
-        document.getElementById('final-ok-btn').onclick = () => submit(name, tel, menu, date, time);
+        document.getElementById('final-ok-btn').onclick = () => submit(name, tel, menu, dateStr, time);
     }
 
-    function closeModal() { document.getElementById('confirm-modal').style.display = 'none';
+    function closeModal() { document.getElementById('confirm-modal').style.display = 'none'; }
+
+    async function submit(name, tel, menu, date, time) {
+        closeModal();
+        await fetch(GAS_URL, { method: "POST", body: JSON.stringify({ name, tel, menu, date, time }) });
+        alert("予約完了！");
+        location.reload();
+    }
+</script>
+
+</body>
+</html>
